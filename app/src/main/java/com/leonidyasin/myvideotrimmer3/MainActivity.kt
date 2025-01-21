@@ -3,6 +3,7 @@ package com.leonidyasin.myvideotrimmer3
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.view.View
 import android.widget.Button
@@ -20,6 +21,9 @@ import androidx.media3.ui.PlayerView
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
     private lateinit var playerView: PlayerView
@@ -54,11 +58,9 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         textStatus = findViewById(R.id.textStatus)
 
-        // Настройка TimePicker для 24-часового формата
         timePickerStart.setIs24HourView(true)
         timePickerEnd.setIs24HourView(true)
 
-        // Инициализация ExoPlayer
         player = ExoPlayer.Builder(this).build()
         playerView.player = player
     }
@@ -72,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         buttonTrimVideo.setOnClickListener {
-            if (selectedVideoPath != null) {
+            if (selectedVideoUri != null) {
                 trimVideo()
             }
         }
@@ -83,10 +85,7 @@ class MainActivity : AppCompatActivity() {
             result.data?.data?.let { uri ->
                 selectedVideoUri = uri
                 updateVideoPreview(uri)
-                getVideoFilePath(uri)?.let { path ->
-                    selectedVideoPath = path
-                    buttonTrimVideo.isEnabled = true
-                }
+                buttonTrimVideo.isEnabled = true
             }
         }
     }
@@ -100,19 +99,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getVideoFilePath(uri: Uri): String? {
-        val projection = arrayOf(MediaStore.Video.Media.DATA)
-        val cursor = contentResolver.query(uri, projection, null, null, null)
-        return cursor?.use {
-            val columnIndex = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            if (it.moveToFirst()) it.getString(columnIndex) else null
+    private fun createTempFileFromUri(uri: Uri): File? {
+        return try {
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val storageDir = getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+            val tempFile = File.createTempFile("VIDEO_${timeStamp}_", ".mp4", storageDir)
+
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            tempFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 
     private fun trimVideo() {
-        val inputPath = selectedVideoPath ?: return
-        val inputFile = File(inputPath)
-        val outputPath = "${inputFile.parent}/${inputFile.nameWithoutExtension}_trim.${inputFile.extension}"
+        val uri = selectedVideoUri ?: return
+
+        // Создаем временный файл из URI
+        val inputFile = createTempFileFromUri(uri) ?: run {
+            textStatus.text = "Ошибка при подготовке файла"
+            return
+        }
+
+        // Создаем выходной файл
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val outputFile = File(
+            getExternalFilesDir(Environment.DIRECTORY_MOVIES),
+            "VIDEO_TRIM_${timeStamp}.mp4"
+        )
 
         // Получаем время начала и конца
         val startHour = timePickerStart.hour
@@ -132,20 +151,25 @@ class MainActivity : AppCompatActivity() {
 
         // Команда для FFmpeg
         val command = arrayOf(
-            "-i", inputPath,
+            "-i", inputFile.absolutePath,
             "-ss", startTime,
             "-to", endTime,
             "-c", "copy",
-            outputPath
+            outputFile.absolutePath
         ).joinToString(" ")
 
         FFmpegKit.executeAsync(command) { session ->
             runOnUiThread {
                 val returnCode = session.returnCode
                 if (ReturnCode.isSuccess(returnCode)) {
-                    textStatus.text = "Видео успешно обработано и сохранено:\n$outputPath"
+                    textStatus.text = "Видео успешно обработано и сохранено:\n${outputFile.absolutePath}"
+                    // Удаляем временный входной файл
+                    inputFile.delete()
                 } else {
                     textStatus.text = "Ошибка при обработке видео"
+                    // В случае ошибки также удаляем временные файлы
+                    inputFile.delete()
+                    outputFile.delete()
                 }
                 progressBar.visibility = View.GONE
                 buttonTrimVideo.isEnabled = true
