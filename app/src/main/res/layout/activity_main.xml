@@ -14,133 +14,97 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" >
+            android:orientation="vertical"
+            android:padding="16dp">
 
-
-
-                <Button
-                    android:id="@+id/button1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Выбрать видео" />
-
-                <TextView
-                    android:id="@+id/text"
-                    android:layout_width="match_parent"
-                    android:layout_height="46dp"
-                    android:text="Здесь будет путь к файлу" />
-
-                <androidx.constraintlayout.widget.Barrier
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    app:barrierDirection="top"
-                    app:constraint_referenced_ids="barrier" />
-
-                <androidx.media3.ui.PlayerView
-                    android:id="@+id/player_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="374dp"
-                    app:show_buffering="when_playing"
-                    app:show_shuffle_button="true">
-
-                </androidx.media3.ui.PlayerView>
-
-                <View
-                    android:id="@+id/divider"
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?android:attr/listDivider" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal">
-
-                <EditText
-                    android:id="@+id/editTextNumber"
-                    android:layout_width="99dp"
-                    android:layout_height="wrap_content"
-                    android:ems="10"
-                    android:inputType="number" />
-
-                <androidx.constraintlayout.widget.Barrier
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    app:barrierDirection="left" />
-
-                <EditText
-                    android:id="@+id/editTextText2"
-                    android:layout_width="37dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ems="10"
-                    android:inputType="text"
-                    android:text="мин" />
-
-                <androidx.constraintlayout.widget.Barrier
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    app:barrierDirection="left" />
-
-                <EditText
-                    android:id="@+id/editTextNumber2"
-                    android:layout_width="113dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ems="10"
-                    android:inputType="number" />
-
-                <androidx.constraintlayout.widget.Barrier
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    app:barrierDirection="left" />
-
-                <EditText
-                    android:id="@+id/editTextText3"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ems="10"
-                    android:inputType="text"
-                    android:text="сек" />
-            </LinearLayout>
-
-            <EditText
-                android:id="@+id/editTextTime"
+            <Button
+                android:id="@+id/buttonChooseVideo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ems="10"
-                android:inputType="time" />
+                android:text="Выбрать видео"
+                android:layout_marginBottom="8dp"/>
 
-            <EditText
-                    android:id="@+id/editTextText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ems="10"
-                    android:inputType="text"
-                    android:text="Время начала" />
-
-            <EditText
-                    android:id="@+id/editText2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ems="10"
-                    android:inputType="text"
-                    android:text="Время конца" />
-
-            <TimePicker
-                android:id="@+id/timePickerEnd"
+            <TextView
+                android:id="@+id/textVideoPath"
                 android:layout_width="match_parent"
-                android:layout_height="89dp"
-                android:timePickerMode="spinner" />
+                android:layout_height="wrap_content"
+                android:text="Выберите видео файл"
+                android:layout_marginBottom="16dp"/>
 
-                <Button
-                    android:id="@+id/button2"
+            <androidx.media3.ui.PlayerView
+                android:id="@+id/playerView"
+                android:layout_width="match_parent"
+                android:layout_height="300dp"
+                app:show_buffering="when_playing"
+                android:layout_marginBottom="16dp"/>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="4dp"
+                app:cardCornerRadius="8dp">
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Обрезать" />
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-            </LinearLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Время начала"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TimePicker
+                        android:id="@+id/timePickerStart"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:timePickerMode="spinner"
+                        android:layout_marginBottom="16dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Время окончания"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TimePicker
+                        android:id="@+id/timePickerEnd"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:timePickerMode="spinner"/>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <Button
+                android:id="@+id/buttonTrimVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Обрезать видео"
+                android:enabled="false"
+                android:layout_marginBottom="16dp"/>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/textStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:visibility="gone"/>
+
+        </LinearLayout>
 
     </ScrollView>
 

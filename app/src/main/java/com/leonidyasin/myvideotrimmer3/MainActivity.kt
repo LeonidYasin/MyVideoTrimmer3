@@ -1,11 +1,14 @@
 package com.leonidyasin.myvideotrimmer3
 
-
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.util.Log
+import android.provider.MediaStore
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.TimePicker
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -14,144 +17,145 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.leonidyasin.myvideotrimmer3.R.id
-import com.leonidyasin.myvideotrimmer3.R.layout
-//import com.arthenica.ffmpegkit.FFmpegKit.*
-//import com.arthenica.ffmpegkit.FFmpegKitConfig.*
-//import com.arthenica.mobileffmpeg.FFmpeg
-
-
-import android.widget.TimePicker
 import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.FFmpegKitConfig
 import com.arthenica.ffmpegkit.ReturnCode
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
-
     private lateinit var playerView: PlayerView
-
     private lateinit var timePickerStart: TimePicker
     private lateinit var timePickerEnd: TimePicker
+    private lateinit var buttonTrimVideo: Button
+    private lateinit var progressBar: ProgressBar
+    private lateinit var textStatus: TextView
+    private var player: ExoPlayer? = null
+    private var selectedVideoUri: Uri? = null
+    private var selectedVideoPath: String? = null
 
-    //private lateinit var binding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(layout.activity_main)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(id.main)) { v, insets ->
+        setContentView(R.layout.activity_main)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
-        val buttonChooseFile: Button = findViewById(id.button1)
-        val textViewPath: TextView = findViewById(id.text)
-
-        buttonChooseFile.setOnClickListener {
-            val intent = Intent(Intent.ACTION_GET_CONTENT)
-            intent.type = "*/*" // Allow selecting any file type
-            startForResult.launch(intent) // Use startForResult to launch the activity
-
-        }
-
-        playerView = findViewById(R.id.player_view)
-        initializePlayer()
-
-
-            //timePickerStart = findViewById(R.id.timePickerStart)
-        //timePickerEnd = findViewById(R.id.timePickerEnd)
-
-        // Инициализация ExoPlayer и установка источника видео
-
-        // Обработчики событий для TimePicker, чтобы получить выбранное время
-        //timePickerStart.setOnTimeChangedListener { _, hour, minute ->
-            // Обработка выбранного времени начала
-        //}
-        //timePickerEnd.setOnTimeChangedListener { _, hour, minute ->
-            // Обработка выбранного времени конца
-        //}
+        initializeViews()
+        setupListeners()
     }
 
-    // Create an instance of ActivityResultLauncher using registerForActivityResult
-    private val startForResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            result.data?.data?.let { uri ->
-                // Handle the selected file URI
-                val textViewPath: TextView = findViewById(id.text)
-                textViewPath.text = "Selected file: $uri"
+    private fun initializeViews() {
+        playerView = findViewById(R.id.playerView)
+        timePickerStart = findViewById(R.id.timePickerStart)
+        timePickerEnd = findViewById(R.id.timePickerEnd)
+        buttonTrimVideo = findViewById(R.id.buttonTrimVideo)
+        progressBar = findViewById(R.id.progressBar)
+        textStatus = findViewById(R.id.textStatus)
 
-                playerView = findViewById(R.id.player_view)
-                // Instantiate the player.
-                val player = ExoPlayer.Builder(this).build()
-// Attach player to the view.
-                playerView.player = player
-// Set the media item to be played.
-                val mediaItem = MediaItem.fromUri(uri)
-                player.setMediaItem(mediaItem)
-// Prepare the player.
-                player.prepare()
+        // Настройка TimePicker для 24-часового формата
+        timePickerStart.setIs24HourView(true)
+        timePickerEnd.setIs24HourView(true)
 
-              /*  // Пример использования:
-                val inputVideo = "/path/to/input.mp4" // Путь к входному видео
-                val outputVideo = "/path/to/output.mp4" // Путь для сохранения обрезанного видео
+        // Инициализация ExoPlayer
+        player = ExoPlayer.Builder(this).build()
+        playerView.player = player
+    }
 
-                trimVideo(inputVideo, outputVideo)*/
+    private fun setupListeners() {
+        findViewById<Button>(R.id.buttonChooseVideo).setOnClickListener {
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "video/*"
+            }
+            startForResult.launch(intent)
+        }
+
+        buttonTrimVideo.setOnClickListener {
+            if (selectedVideoPath != null) {
+                trimVideo()
             }
         }
     }
 
-    private fun initializePlayer() {
-      /*  val player = SimpleExoPlayer.Builder(this).build()
-        playerView.player = player
-
-        val mediaItem = MediaItem.fromUri("https://your_video_url")
-        player.setMediaItem(mediaItem)
-        player.prepare()
-        player.play()*/
+    private val startForResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            result.data?.data?.let { uri ->
+                selectedVideoUri = uri
+                updateVideoPreview(uri)
+                getVideoFilePath(uri)?.let { path ->
+                    selectedVideoPath = path
+                    buttonTrimVideo.isEnabled = true
+                }
+            }
+        }
     }
 
-
-
-
-
-// Assuming LogHelper is defined elsewhere. If not, replace with appropriate logging.
-// Example: import android.util.Log
-// Or if you're using Timber: import timber.log.Timber
-
-    object FFmpeg { // Consider placing this in an object for better organization
-        const val TAG = "FFmpeg"
+    private fun updateVideoPreview(uri: Uri) {
+        findViewById<TextView>(R.id.textVideoPath).text = "Выбранное видео: ${uri.lastPathSegment}"
+        player?.let { exoPlayer ->
+            val mediaItem = MediaItem.fromUri(uri)
+            exoPlayer.setMediaItem(mediaItem)
+            exoPlayer.prepare()
+        }
     }
 
-    fun trimVideo(inputPath: String, outputPath: String) {
-        val startTime = "00:01:00"
-        val endTime = "00:02:00"
+    private fun getVideoFilePath(uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Video.Media.DATA)
+        val cursor = contentResolver.query(uri, projection, null, null, null)
+        return cursor?.use {
+            val columnIndex = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            if (it.moveToFirst()) it.getString(columnIndex) else null
+        }
+    }
 
-        // More robust command construction to handle potential issues with paths containing spaces.
+    private fun trimVideo() {
+        val inputPath = selectedVideoPath ?: return
+        val inputFile = File(inputPath)
+        val outputPath = "${inputFile.parent}/${inputFile.nameWithoutExtension}_trim.${inputFile.extension}"
+
+        // Получаем время начала и конца
+        val startHour = timePickerStart.hour
+        val startMinute = timePickerStart.minute
+        val endHour = timePickerEnd.hour
+        val endMinute = timePickerEnd.minute
+
+        // Форматируем время для FFmpeg
+        val startTime = String.format("%02d:%02d:00", startHour, startMinute)
+        val endTime = String.format("%02d:%02d:00", endHour, endMinute)
+
+        // Показываем прогресс
+        progressBar.visibility = View.VISIBLE
+        textStatus.visibility = View.VISIBLE
+        textStatus.text = "Обработка видео..."
+        buttonTrimVideo.isEnabled = false
+
+        // Команда для FFmpeg
         val command = arrayOf(
             "-i", inputPath,
             "-ss", startTime,
             "-to", endTime,
             "-c", "copy",
             outputPath
-        )
+        ).joinToString(" ")
 
-        FFmpegKit.executeAsync(command.joinToString(" ")) { session -> // Use session instead of individual parameters
-            val returnCode = session.returnCode
-            if (ReturnCode.isSuccess(returnCode)) { // Use isSuccess for clarity
-                Log.i(FFmpeg.TAG, "Command execution completed successfully.")
-            } else {
-                Log.e(FFmpeg.TAG, "Command execution failed with rc=${returnCode?.value}.") // Handle potential null return code
-                val output = session.output
-                if (output != null) {
-                    Log.e(FFmpeg.TAG, "FFmpeg output:\n$output")
+        FFmpegKit.executeAsync(command) { session ->
+            runOnUiThread {
+                val returnCode = session.returnCode
+                if (ReturnCode.isSuccess(returnCode)) {
+                    textStatus.text = "Видео успешно обработано и сохранено:\n$outputPath"
+                } else {
+                    textStatus.text = "Ошибка при обработке видео"
                 }
-                val logs = session.logs
-                if (logs != null) {
-                    logs.forEach { log ->
-                        Log.e(FFmpeg.TAG, "FFmpeg log: ${log.message}")
-                    }
-                }
+                progressBar.visibility = View.GONE
+                buttonTrimVideo.isEnabled = true
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        player?.release()
+        player = null
     }
 }
